@@ -12,9 +12,7 @@ function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
 
 function applyTheme(mode: ThemeMode): void {
   const actual = resolveTheme(mode)
-  const root = document.documentElement
-  root.classList.toggle('dark', actual === 'dark')
-  root.classList.toggle('light', actual === 'light')
+  document.documentElement.dataset.theme = actual === 'dark' ? 'halodark' : 'halolight'
 }
 
 function applySkin(skin: SkinName): void {

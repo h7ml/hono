@@ -7,8 +7,7 @@ const themeBootstrapScript = `
   const skin = localStorage.getItem('halolight.theme.skin') || 'blue';
   const root = document.documentElement;
   const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  root.classList.toggle('dark', dark);
-  root.classList.toggle('light', !dark);
+  root.dataset.theme = dark ? 'halodark' : 'halolight';
   root.dataset.skin = skin;
 })();
 `

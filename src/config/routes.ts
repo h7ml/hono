@@ -5,7 +5,7 @@ export const appRoutes: AppRoute[] = [
     path: '/dashboard',
     meta: {
       title: '仪表盘',
-      icon: '📊',
+      icon: 'dashboard',
       permission: 'dashboard:view',
       breadcrumb: ['首页', '仪表盘']
     }
@@ -14,7 +14,7 @@ export const appRoutes: AppRoute[] = [
     path: '/users',
     meta: {
       title: '用户管理',
-      icon: '👥',
+      icon: 'users',
       permission: 'users:list',
       breadcrumb: ['系统管理', '用户管理']
     }
@@ -23,7 +23,7 @@ export const appRoutes: AppRoute[] = [
     path: '/roles',
     meta: {
       title: '角色管理',
-      icon: '🛡️',
+      icon: 'shield',
       permission: 'roles:list',
       breadcrumb: ['系统管理', '角色管理']
     }
@@ -32,7 +32,7 @@ export const appRoutes: AppRoute[] = [
     path: '/permissions',
     meta: {
       title: '权限管理',
-      icon: '🔐',
+      icon: 'lock',
       permission: 'permissions:list',
       breadcrumb: ['系统管理', '权限管理']
     }
@@ -41,7 +41,7 @@ export const appRoutes: AppRoute[] = [
     path: '/settings',
     meta: {
       title: '系统设置',
-      icon: '⚙️',
+      icon: 'settings',
       permission: 'settings:view',
       breadcrumb: ['系统配置', '系统设置']
     }
@@ -50,7 +50,7 @@ export const appRoutes: AppRoute[] = [
     path: '/profile',
     meta: {
       title: '个人资料',
-      icon: '🙋',
+      icon: 'user',
       breadcrumb: ['账户中心', '个人资料']
     }
   }

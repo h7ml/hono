@@ -91,7 +91,7 @@ app.get('/login', (c) => {
   const error = c.req.query('error')
   return c.render(
     <AuthLayout title="登录 HaloLight">
-      {error ? <p class="subtle">登录失败：用户名或密码错误</p> : null}
+      {error ? <div class="alert alert-error text-sm">登录失败：用户名或密码错误</div> : null}
       <LoginPage />
     </AuthLayout>
   )
@@ -193,9 +193,9 @@ app.notFound((c) => {
   }
   return c.render(
     <AuthLayout title="404">
-      <div class="stack-gap">
+      <div class="space-y-3">
         <p>页面不存在。</p>
-        <a href="/login" class="link-btn">返回登录</a>
+        <a href="/login" class="btn btn-primary btn-sm">返回登录</a>
       </div>
     </AuthLayout>
   )

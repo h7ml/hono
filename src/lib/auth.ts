@@ -30,13 +30,13 @@ export function readSession(c: Context): SessionUser | null {
 }
 
 export function writeSession(c: Context, name: string, role: string): void {
-  setCookie(c, ACCESS_COOKIE, `demo_access_${Date.now()}`, {
+  setCookie(c, ACCESS_COOKIE, `hono_access_${Date.now()}`, {
     path: '/',
     httpOnly: true,
     sameSite: 'Lax',
     maxAge: 900
   })
-  setCookie(c, REFRESH_COOKIE, `demo_refresh_${Date.now()}`, {
+  setCookie(c, REFRESH_COOKIE, `hono_refresh_${Date.now()}`, {
     path: '/',
     httpOnly: true,
     sameSite: 'Lax',
