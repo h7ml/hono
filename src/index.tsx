@@ -505,8 +505,13 @@ app.notFound((c) => {
   )
 })
 
+const cronHandlers: Record<string, (db: D1Database) => Promise<unknown>> = {
+  '0 0 * * *': runCheckin,
+}
+
 const scheduled: ExportedHandlerScheduledHandler<CloudflareBindings> = async (event, env, ctx) => {
-  ctx.waitUntil(runCheckin(env.DB))
+  const handler = cronHandlers[event.cron]
+  if (handler) ctx.waitUntil(handler(env.DB))
 }
 
 export default { fetch: app.fetch, scheduled }
