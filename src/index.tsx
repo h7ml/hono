@@ -1,4 +1,5 @@
 import type { FC } from 'hono/jsx'
+import type { Child } from 'hono/jsx'
 import { Context, Hono } from 'hono'
 import { AdminLayout } from './components/layout/AdminLayout'
 import { AuthLayout } from './components/layout/AuthLayout'
@@ -37,7 +38,7 @@ app.use(renderer)
 function renderAdminPage(
   path: string,
   title: string,
-  content: JSX.Element,
+  content: Child,
   c: AppContext,
   permission?: `${string}:${string}` | '*'
 ) {
