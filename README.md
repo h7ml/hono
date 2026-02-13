@@ -1,4 +1,4 @@
-# HaloLight Hono 管理系统骨架
+# HaloLight Hono 管理系统（Cloudflare D1 版）
 
 ## 快速开始
 
@@ -9,25 +9,47 @@ npm run dev
 
 访问：`http://localhost:5173/login`
 
-## 已集成功能
+## D1 初始化
 
-- HaloLight IA 路由与权限元信息（`/dashboard`、`/users`、`/roles`、`/permissions`、`/settings`、`/profile`）
-- Admin/Auth 双布局
-- 认证流程占位（双 Token cookie：15 分钟 access + 7 天 refresh）
-- 主题模式 `light/dark/system` + skin 持久化
-- 状态模块骨架（`auth`、`ui-settings`、`navigation`）
-- Mock/API 服务层与分页响应结构
+1. 创建数据库：
+
+```bash
+npx wrangler d1 create hono-halolight-db
+```
+
+2. 将返回的 `database_id` 写入 `wrangler.jsonc` 的：
+- `d1_databases[0].database_id`
+- `d1_databases[0].preview_database_id`
+
+3. 执行迁移：
+
+```bash
+npx wrangler d1 migrations apply hono-halolight-db --local
+npx wrangler d1 migrations apply hono-halolight-db --remote
+```
+
+## 默认演示账号（由 migration 自动插入）
+
+- `admin / admin123`
+- `manager / manager123`
+- `viewer / viewer123`
+
+数据库表采用前缀规范：`hono_users`。
+
+## 已对接 API
+
+- `POST /api/auth/login`
+- `GET /api/users?page=1&pageSize=10`
+- `GET /api/routes`
 
 ## 环境变量
 
-复制 `.env.example` 并按需调整：
-
-- `VITE_ENABLE_MOCK`
-- `VITE_API_BASE_URL`
+- `VITE_ENABLE_MOCK`（默认 `false`）
+- `VITE_API_BASE_URL`（默认 `/api`）
 - `VITE_BRAND_NAME`
 - `VITE_DEMO_USERNAME`
 
-## Cloudflare 部署
+## 部署
 
 ```bash
 npm run deploy

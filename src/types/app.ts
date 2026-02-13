@@ -31,11 +31,26 @@ export interface AppRoute {
   meta: RouteMeta
 }
 
+export interface RouteGroup {
+  label: string
+  icon?: string
+  children: AppRoute[]
+}
+
 export interface User {
   id: string
   name: string
   role: string
   permissions: Permission[]
+}
+
+export interface UserListItem {
+  id: number
+  username: string
+  name: string
+  email: string
+  role: string
+  status: string
 }
 
 export interface PaginatedResponse<T> {

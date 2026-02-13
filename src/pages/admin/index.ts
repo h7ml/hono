@@ -1,0 +1,8 @@
+export { DashboardPage } from './DashboardPage'
+export { UsersPage } from './UsersPage'
+export { RolesPage } from './RolesPage'
+export { PermissionsPage } from './PermissionsPage'
+export { SettingsPage } from './SettingsPage'
+export { ProfilePage } from './ProfilePage'
+export { ForbiddenPage } from './ForbiddenPage'
+export { NotFoundPage } from './NotFoundPage'

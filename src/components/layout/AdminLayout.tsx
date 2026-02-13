@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import { appRoutes } from '../../config/routes'
+import { routeGroups } from '../../config/routes'
 import { hasPermission } from '../../lib/permissions'
 import type { Permission } from '../../types/app'
 
@@ -22,17 +22,26 @@ export const AdminLayout: FC<PropsWithChildren<AdminLayoutProps>> = ({
       <aside class="sidebar" aria-label="主导航">
         <div class="brand">HaloLight Admin</div>
         <nav class="nav-list">
-          {appRoutes
-            .filter((route) => hasPermission(permissions, route.meta.permission))
-            .map((route) => (
-              <a
-                href={route.path}
-                class={currentPath === route.path ? 'nav-item active' : 'nav-item'}
-              >
-                <span aria-hidden="true">{route.meta.icon}</span>
-                <span>{route.meta.title}</span>
-              </a>
-            ))}
+          {routeGroups.map((group) => {
+            const visible = group.children.filter((r) =>
+              hasPermission(permissions, r.meta.permission)
+            )
+            if (!visible.length) return null
+            return (
+              <>
+                {group.label && <div class="nav-group-label">{group.label}</div>}
+                {visible.map((route) => (
+                  <a
+                    href={route.path}
+                    class={currentPath === route.path ? 'nav-item active' : 'nav-item'}
+                  >
+                    <span aria-hidden="true">{route.meta.icon}</span>
+                    <span>{route.meta.title}</span>
+                  </a>
+                ))}
+              </>
+            )
+          })}
         </nav>
       </aside>
 

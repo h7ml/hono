@@ -1,4 +1,4 @@
-import type { AppRoute } from '../types/app'
+import type { AppRoute, RouteGroup } from '../types/app'
 
 export const appRoutes: AppRoute[] = [
   {
@@ -54,6 +54,13 @@ export const appRoutes: AppRoute[] = [
       breadcrumb: ['账户中心', '个人资料']
     }
   }
+]
+
+export const routeGroups: RouteGroup[] = [
+  { label: '', children: [appRoutes[0]] },
+  { label: '系统管理', children: appRoutes.slice(1, 4) },
+  { label: '系统配置', children: [appRoutes[4]] },
+  { label: '账户中心', children: [appRoutes[5]] }
 ]
 
 export const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password']

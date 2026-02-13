@@ -105,6 +105,15 @@ a {
   font-weight: 600;
 }
 
+.nav-group-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: hsl(var(--muted));
+  margin: 14px 12px 4px;
+}
+
 .content {
   padding: 18px;
 }

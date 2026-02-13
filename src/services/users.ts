@@ -1,7 +1,6 @@
-import type { PaginatedResponse } from '../types/app'
-import type { MockUser } from '../mocks/data'
+import type { PaginatedResponse, UserListItem } from '../types/app'
 import { apiGet } from './api'
 
-export async function fetchUsers(): Promise<PaginatedResponse<MockUser>> {
-  return apiGet<PaginatedResponse<MockUser>>('/users')
+export async function fetchUsers(): Promise<PaginatedResponse<UserListItem>> {
+  return apiGet<PaginatedResponse<UserListItem>>('/users')
 }
