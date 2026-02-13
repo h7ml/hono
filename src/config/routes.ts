@@ -26,6 +26,10 @@ export const appRoutes: AppRoute[] = [
     meta: { title: '审计日志', icon: 'clipboard', permission: 'audit:list', breadcrumb: ['系统配置', '审计日志'] }
   },
   {
+    path: '/cron/anyrouter',
+    meta: { title: 'AnyRouter', icon: 'zap', permission: 'checkin:list', breadcrumb: ['定时任务', 'AnyRouter'] }
+  },
+  {
     path: '/profile',
     meta: { title: '个人资料', icon: 'user', breadcrumb: ['账户中心', '个人资料'] }
   }
@@ -35,7 +39,8 @@ export const routeGroups: RouteGroup[] = [
   { label: '', children: [appRoutes[0]] },
   { label: '系统管理', children: appRoutes.slice(1, 4) },
   { label: '系统配置', children: appRoutes.slice(4, 6) },
-  { label: '账户中心', children: [appRoutes[6]] }
+  { label: '定时任务', children: [appRoutes[6]] },
+  { label: '账户中心', children: [appRoutes[7]] }
 ]
 
 export const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password']

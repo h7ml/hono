@@ -244,6 +244,92 @@ document.addEventListener('click', async (e) => {
         showToast('资料已更新')
         break
       }
+
+      // ── Checkin ──
+      case 'open-add-checkin': {
+        openModal('add-checkin-modal')
+        break
+      }
+      case 'submit-add-checkin': {
+        const modal = document.getElementById('add-checkin-modal')
+        if (!modal) break
+        const data = {
+          label: getInputValue(modal, 'label'),
+          session_cookie: (modal.querySelector('[name="session_cookie"]') as HTMLTextAreaElement)?.value ?? '',
+          upstream_url: getInputValue(modal, 'upstream_url'),
+          custom_fields: (modal.querySelector('[name="custom_fields"]') as HTMLTextAreaElement)?.value?.trim() || '{}'
+        }
+        await apiCall('POST', '/api/checkin/accounts', data)
+        showToast('签到账户已添加')
+        closeModal('add-checkin-modal')
+        location.reload()
+        break
+      }
+      case 'edit-checkin': {
+        const modal = document.getElementById('edit-checkin-modal')
+        if (!modal) break
+        const id = target.dataset.id ?? ''
+        const row = target.closest('tr') ?? target.closest('[data-label]')
+        if (!row) break
+        ;(modal.querySelector('[name="id"]') as HTMLInputElement).value = id
+        const labelInput = modal.querySelector('[name="label"]') as HTMLInputElement
+        const upstreamInput = modal.querySelector('[name="upstream_url"]') as HTMLInputElement
+        const customFieldsInput = modal.querySelector('[name="custom_fields"]') as HTMLTextAreaElement
+        if (labelInput) labelInput.value = (row as HTMLElement).dataset.label ?? ''
+        if (upstreamInput) upstreamInput.value = (row as HTMLElement).dataset.upstream ?? ''
+        if (customFieldsInput) customFieldsInput.value = (row as HTMLElement).dataset.custom ?? '{}'
+        ;(modal.querySelector('[name="session_cookie"]') as HTMLTextAreaElement).value = ''
+        openModal('edit-checkin-modal')
+        break
+      }
+      case 'submit-edit-checkin': {
+        const modal = document.getElementById('edit-checkin-modal')
+        if (!modal) break
+        const id = getInputValue(modal, 'id')
+        const data: Record<string, string> = {
+          label: getInputValue(modal, 'label'),
+          upstream_url: getInputValue(modal, 'upstream_url')
+        }
+        const cookie = (modal.querySelector('[name="session_cookie"]') as HTMLTextAreaElement)?.value?.trim()
+        if (cookie) data.session_cookie = cookie
+        const customFields = (modal.querySelector('[name="custom_fields"]') as HTMLTextAreaElement)?.value?.trim()
+        if (customFields) data.custom_fields = customFields
+        await apiCall('PUT', `/api/checkin/accounts/${id}`, data)
+        showToast('签到账户已更新')
+        closeModal('edit-checkin-modal')
+        location.reload()
+        break
+      }
+      case 'delete-checkin': {
+        const id = target.dataset.id
+        if (!id) break
+        if (!confirm('确认删除该签到账户？')) break
+        await apiCall('DELETE', `/api/checkin/accounts/${id}`)
+        showToast('签到账户已删除')
+        location.reload()
+        break
+      }
+      case 'toggle-checkin-status': {
+        const id = target.dataset.id
+        if (!id) break
+        await apiCall('PATCH', `/api/checkin/accounts/${id}/status`)
+        showToast('状态已切换')
+        location.reload()
+        break
+      }
+      case 'checkin-run': {
+        target.classList.add('loading', 'loading-spinner')
+        target.setAttribute('disabled', 'true')
+        try {
+          const res = await apiCall('POST', '/api/checkin/run') as { message?: string }
+          showToast(res.message ?? '签到完成')
+          location.reload()
+        } finally {
+          target.classList.remove('loading', 'loading-spinner')
+          target.removeAttribute('disabled')
+        }
+        break
+      }
     }
   } catch (err) {
     showToast((err as Error).message, 'error')

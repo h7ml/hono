@@ -125,3 +125,25 @@ export interface DashboardStats {
   todayLogCount: number
   recentLogs: DbAuditLog[]
 }
+
+export interface DbCheckinAccount {
+  id: number
+  label: string
+  session_cookie: string
+  upstream_url: string
+  status: string
+  last_checkin_at: string | null
+  last_checkin_result: string | null
+  custom_fields: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DbCheckinLog {
+  id: number
+  account_id: number
+  account_label: string
+  success: number
+  message: string
+  created_at: string
+}

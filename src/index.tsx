@@ -11,10 +11,13 @@ import { getAllRoles, getAllRolesWithPermissions, createRole, updateRole, delete
 import { getAllPermissions, getPermissionsGroupedByResource } from './lib/db/permissions'
 import { getAllSettings, getSettingsGrouped, updateSetting } from './lib/db/settings'
 import { getAuditLogsPage, writeAuditLog, getDashboardStats } from './lib/db/audit'
+import { getAllCheckinAccounts, getActiveCheckinAccounts, createCheckinAccount, updateCheckinAccount, deleteCheckinAccount, toggleCheckinAccountStatus, getCheckinLogsPage } from './lib/db/checkin'
+import { getSetting } from './lib/db/settings'
+import { runCheckin } from './lib/checkin'
 
 import {
   DashboardPage, UsersPage, RolesPage, PermissionsPage,
-  SettingsPage, ProfilePage, AuditLogsPage,
+  SettingsPage, ProfilePage, AuditLogsPage, CheckinPage,
   ForbiddenPage, NotFoundPage
 } from './pages/admin'
 import {
@@ -113,6 +116,14 @@ app.get('/audit-logs', async (c) => {
   const page = Number(c.req.query('page') ?? '1')
   const data = await getAuditLogsPage(c.env.DB, { page, pageSize: 20 })
   return renderAdminPage('/audit-logs', '审计日志', <AuditLogsPage data={data} />, c, 'audit:list')
+})
+
+app.get('/cron/anyrouter', async (c) => {
+  const accounts = await getAllCheckinAccounts(c.env.DB)
+  const logPage = Number(c.req.query('logPage') ?? '1')
+  const logs = await getCheckinLogsPage(c.env.DB, { page: logPage, pageSize: 20 })
+  const tokenSetting = await getSetting(c.env.DB, 'notification.pushplus_token')
+  return renderAdminPage('/cron/anyrouter', 'AnyRouter', <CheckinPage accounts={accounts} logs={logs} pushplusToken={tokenSetting?.value ?? ''} />, c, 'checkin:list')
 })
 
 app.get('/profile', async (c) => {
@@ -385,6 +396,94 @@ app.get('/api/audit-logs', async (c) => {
   return c.json(data)
 })
 
+// Checkin API
+app.get('/api/checkin/accounts', async (c) => {
+  const data = await getAllCheckinAccounts(c.env.DB)
+  return c.json(data)
+})
+
+app.post('/api/checkin/accounts', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'checkin:create')) return c.json({ error: 'Forbidden' }, 403)
+  const body = await c.req.json()
+  const account = await createCheckinAccount(c.env.DB, body)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'checkin:create', resource_type: 'checkin_account',
+    resource_id: String(account?.id ?? ''), detail: `添加签到账户 ${body.label}`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, data: account })
+})
+
+app.put('/api/checkin/accounts/:id', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'checkin:update')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const body = await c.req.json()
+  const account = await updateCheckinAccount(c.env.DB, id, body)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'checkin:update', resource_type: 'checkin_account',
+    resource_id: String(id), detail: `更新签到账户 #${id}`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, data: account })
+})
+
+app.delete('/api/checkin/accounts/:id', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'checkin:delete')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const ok = await deleteCheckinAccount(c.env.DB, id)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'checkin:delete', resource_type: 'checkin_account',
+    resource_id: String(id), detail: `删除签到账户 #${id}`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok })
+})
+
+app.patch('/api/checkin/accounts/:id/status', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'checkin:update')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const account = await toggleCheckinAccountStatus(c.env.DB, id)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'checkin:update', resource_type: 'checkin_account',
+    resource_id: String(id), detail: `切换签到账户 #${id} 状态`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, data: account })
+})
+
+app.post('/api/checkin/run', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'checkin:run')) return c.json({ error: 'Forbidden' }, 403)
+  const message = await runCheckin(c.env.DB)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'checkin:run', resource_type: 'checkin',
+    resource_id: '', detail: '手动执行签到',
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, message })
+})
+
+app.get('/api/checkin/logs', async (c) => {
+  const page = Number(c.req.query('page') ?? '1')
+  const pageSize = Number(c.req.query('pageSize') ?? '20')
+  const data = await getCheckinLogsPage(c.env.DB, { page, pageSize })
+  return c.json(data)
+})
+
 // ── 404 ──
 
 app.notFound((c) => {
@@ -406,4 +505,8 @@ app.notFound((c) => {
   )
 })
 
-export default app
+const scheduled: ExportedHandlerScheduledHandler<CloudflareBindings> = async (event, env, ctx) => {
+  ctx.waitUntil(runCheckin(env.DB))
+}
+
+export default { fetch: app.fetch, scheduled }

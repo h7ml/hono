@@ -3,7 +3,8 @@ import type { DbSetting, SettingsGroup } from '../../types/app'
 const GROUP_LABELS: Record<string, string> = {
   general: '通用设置',
   auth: '认证设置',
-  ui: '界面设置'
+  ui: '界面设置',
+  notification: '通知设置'
 }
 
 export async function getAllSettings(db: D1Database): Promise<DbSetting[]> {
