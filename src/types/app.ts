@@ -60,3 +60,68 @@ export interface PaginatedResponse<T> {
   pageSize: number
   totalPages: number
 }
+
+// ── Database Row Types ──
+
+export interface DbRole {
+  id: number
+  code: string
+  name: string
+  description: string | null
+  status: string
+  is_system: number
+  created_at: string
+  updated_at: string
+}
+
+export interface DbPermission {
+  id: number
+  code: string
+  resource: string
+  action: string
+  name: string
+  description: string | null
+  is_system: number
+  created_at: string
+}
+
+export interface RoleWithPermissions extends DbRole {
+  permissions: DbPermission[]
+  permissionCount: number
+}
+
+export interface DbSetting {
+  key: string
+  value: string
+  value_type: string
+  group_name: string
+  label: string
+  description: string | null
+  updated_at: string
+}
+
+export interface SettingsGroup {
+  group: string
+  label: string
+  items: DbSetting[]
+}
+
+export interface DbAuditLog {
+  id: number
+  user_id: number | null
+  user_name: string
+  action: string
+  resource_type: string | null
+  resource_id: string | null
+  detail: string | null
+  ip: string | null
+  created_at: string
+}
+
+export interface DashboardStats {
+  userCount: number
+  activeUserCount: number
+  roleCount: number
+  todayLogCount: number
+  recentLogs: DbAuditLog[]
+}

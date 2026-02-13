@@ -1,18 +1,5 @@
 import type { Permission } from '../types/app'
 
-export const rolePermissions: Record<string, Permission[]> = {
-  admin: ['*'],
-  manager: [
-    'dashboard:view',
-    'users:list',
-    'roles:list',
-    'permissions:list',
-    'settings:view',
-    'profile:view'
-  ],
-  viewer: ['dashboard:view', 'users:list', 'profile:view']
-}
-
 export function hasPermission(
   granted: Permission[] | undefined,
   required: Permission | undefined
@@ -32,4 +19,14 @@ export function hasPermission(
 
   const [resource] = required.split(':')
   return granted.includes(`${resource}:*`)
+}
+
+export async function loadPermissionsForRole(db: D1Database, roleCode: string): Promise<Permission[]> {
+  const result = await db.prepare(
+    `SELECT p.code FROM hono_permissions p
+     JOIN hono_role_permissions rp ON p.id = rp.permission_id
+     JOIN hono_roles r ON r.id = rp.role_id
+     WHERE r.code = ?`
+  ).bind(roleCode).all<{ code: string }>()
+  return result.results.map(r => r.code as Permission)
 }
