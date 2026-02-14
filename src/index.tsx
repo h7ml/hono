@@ -14,7 +14,7 @@ import { getAllSettings, getSettingsGrouped, updateSetting } from './lib/db/sett
 import { getAuditLogsPage, writeAuditLog, getDashboardStats } from './lib/db/audit'
 import { getAllCheckinAccounts, getActiveCheckinAccounts, createCheckinAccount, updateCheckinAccount, deleteCheckinAccount, toggleCheckinAccountStatus, getCheckinLogsPage } from './lib/db/checkin'
 import { getSetting } from './lib/db/settings'
-import { runCheckin } from './lib/checkin'
+import { runCheckin, runCheckinSingle } from './lib/checkin'
 
 import {
   DashboardPage, UsersPage, RolesPage, PermissionsPage,
@@ -473,6 +473,21 @@ app.post('/api/checkin/run', async (c) => {
     user_id: session.id, user_name: session.name,
     action: 'checkin:run', resource_type: 'checkin',
     resource_id: '', detail: '手动执行签到',
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, message })
+})
+
+app.post('/api/checkin/run/:id', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'checkin:run')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const message = await runCheckinSingle(c.env.DB, id)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'checkin:run', resource_type: 'checkin_account',
+    resource_id: String(id), detail: `单个签到 #${id}`,
     ip: getClientIp(c)
   })
   return c.json({ ok: true, message })

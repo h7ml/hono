@@ -23,6 +23,13 @@ export async function getActiveCheckinAccounts(db: D1Database): Promise<DbChecki
   return result.results
 }
 
+export async function getCheckinAccountById(db: D1Database, id: number): Promise<DbCheckinAccount | null> {
+  return db
+    .prepare('SELECT * FROM hono_checkin_accounts WHERE id = ?')
+    .bind(id)
+    .first<DbCheckinAccount>()
+}
+
 export async function createCheckinAccount(
   db: D1Database,
   data: { label: string; session_cookie: string; upstream_url?: string; custom_fields?: string }

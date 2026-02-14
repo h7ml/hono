@@ -1,4 +1,4 @@
-import { getActiveCheckinAccounts, updateCheckinResult, writeCheckinLog } from './db/checkin'
+import { getActiveCheckinAccounts, getCheckinAccountById, updateCheckinResult, writeCheckinLog } from './db/checkin'
 import { getSetting } from './db/settings'
 
 const UA =
@@ -14,6 +14,13 @@ const UNSBOX_TABLE = [
   0xc, 0x24,
 ]
 
+const CHECKIN_DELAY_MS = 3000
+const MAX_RETRIES = 2
+
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
 function computeAcwCookie(arg1: string): string {
   const unsboxed = UNSBOX_TABLE.map((i) => arg1[i - 1]).join('')
   let out = ''
@@ -25,6 +32,11 @@ function computeAcwCookie(arg1: string): string {
   return `acw_sc__v2=${out}`
 }
 
+function extractArg1(html: string): string | null {
+  const m = html.match(/var\s+arg1\s*=\s*'([0-9a-fA-F]{40})'/)
+  return m ? m[1] : null
+}
+
 async function getAcwCookie(targetUrl: string): Promise<string | null> {
   try {
     const resp = await fetch(targetUrl, {
@@ -33,9 +45,9 @@ async function getAcwCookie(targetUrl: string): Promise<string | null> {
       redirect: 'manual',
     })
     const html = await resp.text()
-    const m = html.match(/var\s+arg1\s*=\s*'([0-9a-fA-F]{40})'/)
-    if (!m) return null
-    return computeAcwCookie(m[1])
+    const arg1 = extractArg1(html)
+    if (!arg1) return null
+    return computeAcwCookie(arg1)
   } catch {
     return null
   }
@@ -59,42 +71,56 @@ async function signInWithDynamicCookie(
     return { ok: false, msg: '获取动态 Cookie 失败' }
   }
 
-  let resp: Response
-  try {
-    resp = await fetch(signUrl.toString(), {
-      method: 'POST',
-      headers: {
-        'User-Agent': UA,
-        Cookie: `${acwCookie}; session=${session}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/plain, */*',
-        Origin: upstream,
-        Referer: `${upstream}/`,
-      },
-      body: '',
-    })
-  } catch (err) {
-    return { ok: false, msg: `请求异常: ${String(err)}` }
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    let resp: Response
+    try {
+      resp = await fetch(signUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'User-Agent': UA,
+          Cookie: `${acwCookie}; session=${session}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/plain, */*',
+          Origin: upstream,
+          Referer: `${upstream}/`,
+        },
+        body: '',
+      })
+    } catch (err) {
+      return { ok: false, msg: `请求异常: ${String(err)}` }
+    }
+
+    if (resp.status === 401) return { ok: false, msg: 'session 无效(401)' }
+
+    const bodyText = await resp.text().catch(() => '')
+    if (!resp.ok) return { ok: false, msg: `HTTP ${resp.status}: ${bodyText}` }
+
+    const arg1 = extractArg1(bodyText)
+    if (arg1) {
+      if (attempt < MAX_RETRIES) {
+        acwCookie = computeAcwCookie(arg1)
+        await delay(1000)
+        continue
+      }
+      return { ok: false, msg: '反爬验证重试失败' }
+    }
+
+    let data: Record<string, unknown>
+    try {
+      data = JSON.parse(bodyText)
+    } catch {
+      return { ok: false, msg: `响应非JSON: ${bodyText.slice(0, 200)}` }
+    }
+
+    const success = data?.success
+    const message = String(data?.message || '').trim()
+
+    if (success === true) return { ok: true, msg: message || '今日已签到' }
+    if (success === false) return { ok: false, msg: message || `签到失败: ${JSON.stringify(data)}` }
+    return { ok: true, msg: `返回: ${JSON.stringify(data)}` }
   }
 
-  if (resp.status === 401) return { ok: false, msg: 'session 无效(401)' }
-
-  const bodyText = await resp.text().catch(() => '')
-  if (!resp.ok) return { ok: false, msg: `HTTP ${resp.status}: ${bodyText}` }
-
-  let data: Record<string, unknown>
-  try {
-    data = JSON.parse(bodyText)
-  } catch {
-    return { ok: false, msg: `响应非JSON: ${bodyText}` }
-  }
-
-  const success = data?.success
-  const message = String(data?.message || '').trim()
-
-  if (success === true) return { ok: true, msg: message || '今日已签到' }
-  if (success === false) return { ok: false, msg: message || `签到失败: ${JSON.stringify(data)}` }
-  return { ok: true, msg: `返回: ${JSON.stringify(data)}` }
+  return { ok: false, msg: '重试次数耗尽' }
 }
 
 async function sendPushPlus(token: string, title: string, content: string): Promise<void> {
@@ -105,6 +131,26 @@ async function sendPushPlus(token: string, title: string, content: string): Prom
   })
 }
 
+export async function runCheckinSingle(db: D1Database, accountId: number): Promise<string> {
+  const acct = await getCheckinAccountById(db, accountId)
+  if (!acct) return '账户不存在'
+
+  const upstream = acct.upstream_url || 'https://anyrouter.top'
+  const { ok, msg } = await signInWithDynamicCookie(upstream, acct.session_cookie)
+  const label = acct.label || `#${acct.id}`
+  const resultText = ok ? `✅ ${msg}` : `❌ ${msg}`
+
+  await updateCheckinResult(db, acct.id, resultText)
+  await writeCheckinLog(db, {
+    account_id: acct.id,
+    account_label: label,
+    success: ok,
+    message: msg,
+  })
+
+  return `${label}: ${resultText}`
+}
+
 export async function runCheckin(db: D1Database): Promise<string> {
   const accounts = await getActiveCheckinAccounts(db)
   if (!accounts.length) return '无活跃签到账户'
@@ -113,7 +159,10 @@ export async function runCheckin(db: D1Database): Promise<string> {
   let successCount = 0
   let failCount = 0
 
-  for (const acct of accounts) {
+  for (let i = 0; i < accounts.length; i++) {
+    if (i > 0) await delay(CHECKIN_DELAY_MS)
+
+    const acct = accounts[i]
     const upstream = acct.upstream_url || 'https://anyrouter.top'
     const { ok, msg } = await signInWithDynamicCookie(upstream, acct.session_cookie)
 

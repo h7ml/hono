@@ -109,6 +109,7 @@ export const CheckinPage: FC<CheckinPageProps> = ({ accounts, logs, pushplusToke
                       <td class="max-w-[200px] truncate text-sm text-base-content/60">{a.last_checkin_result ?? '-'}</td>
                       <td>
                         <div class="flex justify-end gap-1">
+                          <button class="action-btn" data-action="checkin-run-single" data-id={a.id}>签到</button>
                           <button class="action-btn" data-action="edit-checkin" data-id={a.id}>编辑</button>
                           <button class="action-btn" data-action="toggle-checkin-status" data-id={a.id}>
                             {a.status === 'active' ? '停用' : '启用'}
@@ -145,6 +146,7 @@ export const CheckinPage: FC<CheckinPageProps> = ({ accounts, logs, pushplusToke
                     <span class="text-[11px] text-base-content/30">未签到</span>
                   )}
                   <div class="flex gap-1">
+                    <button class="action-btn" data-action="checkin-run-single" data-id={a.id}>签到</button>
                     <button class="action-btn" data-action="edit-checkin" data-id={a.id}>编辑</button>
                     <button class="action-btn" data-action="toggle-checkin-status" data-id={a.id}>
                       {a.status === 'active' ? '停用' : '启用'}

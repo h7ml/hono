@@ -330,6 +330,21 @@ document.addEventListener('click', async (e) => {
         }
         break
       }
+      case 'checkin-run-single': {
+        const id = target.dataset.id
+        if (!id) break
+        target.classList.add('loading', 'loading-spinner')
+        target.setAttribute('disabled', 'true')
+        try {
+          const res = await apiCall('POST', `/api/checkin/run/${id}`) as { message?: string }
+          showToast(res.message ?? '签到完成')
+          location.reload()
+        } finally {
+          target.classList.remove('loading', 'loading-spinner')
+          target.removeAttribute('disabled')
+        }
+        break
+      }
     }
   } catch (err) {
     showToast((err as Error).message, 'error')
