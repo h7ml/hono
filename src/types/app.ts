@@ -147,3 +147,44 @@ export interface DbCheckinLog {
   message: string
   created_at: string
 }
+
+export interface DbCronTask {
+  id: number
+  name: string
+  description: string
+  cron_expr: string
+  http_method: string
+  url: string
+  headers: string
+  body: string
+  timeout_ms: number
+  max_retries: number
+  notify_on_failure: number
+  status: string
+  next_run_at: string | null
+  last_run_at: string | null
+  last_run_result: string | null
+  last_run_status: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DbCronTaskLog {
+  id: number
+  task_id: number
+  task_name: string
+  success: number
+  status_code: number | null
+  duration_ms: number
+  response_preview: string
+  trigger_source: string
+  message: string
+  created_at: string
+}
+
+export interface ParsedCurl {
+  method: string
+  url: string
+  headers: Record<string, string>
+  body: string
+}

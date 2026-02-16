@@ -345,6 +345,137 @@ document.addEventListener('click', async (e) => {
         }
         break
       }
+
+      // ── Cron Tasks ──
+      case 'open-add-crontask': {
+        openModal('add-crontask-modal')
+        break
+      }
+      case 'submit-add-crontask': {
+        const modal = document.getElementById('add-crontask-modal')
+        if (!modal) break
+        const data = {
+          name: getInputValue(modal, 'name'),
+          description: getInputValue(modal, 'description'),
+          cron_expr: getInputValue(modal, 'cron_expr'),
+          http_method: getInputValue(modal, 'http_method'),
+          url: getInputValue(modal, 'url'),
+          headers: (modal.querySelector('[name="headers"]') as HTMLTextAreaElement)?.value?.trim() || '{}',
+          body: (modal.querySelector('[name="body"]') as HTMLTextAreaElement)?.value?.trim() || '',
+          timeout_ms: Number(getInputValue(modal, 'timeout_ms') || '30000'),
+          max_retries: Number(getInputValue(modal, 'max_retries') || '0'),
+          notify_on_failure: Number(getInputValue(modal, 'notify_on_failure') || '1'),
+        }
+        await apiCall('POST', '/api/cron/tasks', data)
+        showToast('定时任务已创建')
+        closeModal('add-crontask-modal')
+        location.reload()
+        break
+      }
+      case 'edit-crontask': {
+        const modal = document.getElementById('edit-crontask-modal')
+        if (!modal) break
+        const id = target.dataset.id ?? ''
+        const row = target.closest('tr') ?? target.closest('[data-name]')
+        if (!row) break
+        const el = row as HTMLElement
+        ;(modal.querySelector('[name="id"]') as HTMLInputElement).value = id
+        ;(modal.querySelector('[name="name"]') as HTMLInputElement).value = el.dataset.name ?? ''
+        ;(modal.querySelector('[name="description"]') as HTMLInputElement).value = el.dataset.desc ?? ''
+        ;(modal.querySelector('[name="cron_expr"]') as HTMLInputElement).value = el.dataset.cron ?? ''
+        ;(modal.querySelector('[name="http_method"]') as HTMLSelectElement).value = el.dataset.method ?? 'GET'
+        ;(modal.querySelector('[name="url"]') as HTMLInputElement).value = el.dataset.url ?? ''
+        ;(modal.querySelector('[name="headers"]') as HTMLTextAreaElement).value = el.dataset.headers ?? '{}'
+        ;(modal.querySelector('[name="body"]') as HTMLTextAreaElement).value = el.dataset.body ?? ''
+        ;(modal.querySelector('[name="timeout_ms"]') as HTMLInputElement).value = el.dataset.timeout ?? '30000'
+        ;(modal.querySelector('[name="max_retries"]') as HTMLInputElement).value = el.dataset.retries ?? '0'
+        ;(modal.querySelector('[name="notify_on_failure"]') as HTMLSelectElement).value = el.dataset.notify ?? '1'
+        openModal('edit-crontask-modal')
+        break
+      }
+      case 'submit-edit-crontask': {
+        const modal = document.getElementById('edit-crontask-modal')
+        if (!modal) break
+        const id = getInputValue(modal, 'id')
+        const data = {
+          name: getInputValue(modal, 'name'),
+          description: getInputValue(modal, 'description'),
+          cron_expr: getInputValue(modal, 'cron_expr'),
+          http_method: getInputValue(modal, 'http_method'),
+          url: getInputValue(modal, 'url'),
+          headers: (modal.querySelector('[name="headers"]') as HTMLTextAreaElement)?.value?.trim() || '{}',
+          body: (modal.querySelector('[name="body"]') as HTMLTextAreaElement)?.value?.trim() || '',
+          timeout_ms: Number(getInputValue(modal, 'timeout_ms') || '30000'),
+          max_retries: Number(getInputValue(modal, 'max_retries') || '0'),
+          notify_on_failure: Number(getInputValue(modal, 'notify_on_failure') || '1'),
+        }
+        await apiCall('PUT', `/api/cron/tasks/${id}`, data)
+        showToast('定时任务已更新')
+        closeModal('edit-crontask-modal')
+        location.reload()
+        break
+      }
+      case 'delete-crontask': {
+        const id = target.dataset.id
+        if (!id) break
+        if (!confirm('确认删除该定时任务？')) break
+        await apiCall('DELETE', `/api/cron/tasks/${id}`)
+        showToast('定时任务已删除')
+        location.reload()
+        break
+      }
+      case 'toggle-crontask-status': {
+        const id = target.dataset.id
+        if (!id) break
+        await apiCall('PATCH', `/api/cron/tasks/${id}/status`)
+        showToast('状态已切换')
+        location.reload()
+        break
+      }
+      case 'crontask-run-single': {
+        const id = target.dataset.id
+        if (!id) break
+        target.classList.add('loading', 'loading-spinner')
+        target.setAttribute('disabled', 'true')
+        try {
+          const res = await apiCall('POST', `/api/cron/tasks/${id}/run`) as { message?: string }
+          showToast(res.message ?? '执行完成')
+          location.reload()
+        } finally {
+          target.classList.remove('loading', 'loading-spinner')
+          target.removeAttribute('disabled')
+        }
+        break
+      }
+      case 'parse-curl-add':
+      case 'parse-curl-edit': {
+        const modalId = action === 'parse-curl-add' ? 'add-crontask-modal' : 'edit-crontask-modal'
+        const modal = document.getElementById(modalId)
+        if (!modal) break
+        const curlText = (modal.querySelector('[name="curl_input"]') as HTMLTextAreaElement)?.value?.trim()
+        if (!curlText) { showToast('请输入 curl 命令', 'warning'); break }
+        const parsed = await apiCall('POST', '/api/cron/tasks/parse-curl', { curl: curlText }) as {
+          method: string; url: string; headers: Record<string, string>; body: string
+        }
+        ;(modal.querySelector('[name="http_method"]') as HTMLSelectElement).value = parsed.method
+        ;(modal.querySelector('[name="url"]') as HTMLInputElement).value = parsed.url
+        ;(modal.querySelector('[name="headers"]') as HTMLTextAreaElement).value = JSON.stringify(parsed.headers, null, 2)
+        ;(modal.querySelector('[name="body"]') as HTMLTextAreaElement).value = parsed.body
+        showToast('curl 解析完成')
+        break
+      }
+      case 'send-daily-summary': {
+        target.classList.add('loading', 'loading-spinner')
+        target.setAttribute('disabled', 'true')
+        try {
+          const res = await apiCall('POST', '/api/cron/daily-summary') as { message?: string }
+          showToast(res.message ?? '汇总已发送')
+        } finally {
+          target.classList.remove('loading', 'loading-spinner')
+          target.removeAttribute('disabled')
+        }
+        break
+      }
     }
   } catch (err) {
     showToast((err as Error).message, 'error')
@@ -354,3 +485,16 @@ document.addEventListener('click', async (e) => {
 // ── 初始化 ──
 
 document.addEventListener('DOMContentLoaded', initSelectors)
+
+document.addEventListener('change', (e) => {
+  const target = e.target as HTMLElement
+  if (target.dataset.action === 'cron-preset-change') {
+    const select = target as HTMLSelectElement
+    if (!select.value) return
+    const modalId = select.dataset.target === 'edit' ? 'edit-crontask-modal' : 'add-crontask-modal'
+    const modal = document.getElementById(modalId)
+    if (!modal) return
+    ;(modal.querySelector('[name="cron_expr"]') as HTMLInputElement).value = select.value
+    select.value = ''
+  }
+})

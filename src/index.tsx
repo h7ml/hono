@@ -1,4 +1,3 @@
-import type { FC } from 'hono/jsx'
 import type { Child } from 'hono/jsx'
 import { Context, Hono } from 'hono'
 import { AdminLayout } from './components/layout/AdminLayout'
@@ -12,13 +11,16 @@ import { getAllRoles, getAllRolesWithPermissions, createRole, updateRole, delete
 import { getAllPermissions, getPermissionsGroupedByResource } from './lib/db/permissions'
 import { getAllSettings, getSettingsGrouped, updateSetting } from './lib/db/settings'
 import { getAuditLogsPage, writeAuditLog, getDashboardStats } from './lib/db/audit'
-import { getAllCheckinAccounts, getActiveCheckinAccounts, createCheckinAccount, updateCheckinAccount, deleteCheckinAccount, toggleCheckinAccountStatus, getCheckinLogsPage } from './lib/db/checkin'
+import { getAllCheckinAccounts, createCheckinAccount, updateCheckinAccount, deleteCheckinAccount, toggleCheckinAccountStatus, getCheckinLogsPage } from './lib/db/checkin'
+import { getAllCronTasks, createCronTask, updateCronTask, deleteCronTask, toggleCronTaskStatus, getCronTaskLogsPage } from './lib/db/cron-tasks'
 import { getSetting } from './lib/db/settings'
 import { runCheckin, runCheckinSingle } from './lib/checkin'
+import { parseCurl, cronNextRun, executeCronTask, runDueCronTasks, sendDailySummary } from './lib/cron-runner'
+import { getCronTaskById } from './lib/db/cron-tasks'
 
 import {
   DashboardPage, UsersPage, RolesPage, PermissionsPage,
-  SettingsPage, ProfilePage, AuditLogsPage, CheckinPage,
+  SettingsPage, ProfilePage, AuditLogsPage, CheckinPage, CronTasksPage,
   ForbiddenPage, NotFoundPage
 } from './pages/admin'
 import {
@@ -125,6 +127,13 @@ app.get('/cron/anyrouter', async (c) => {
   const logs = await getCheckinLogsPage(c.env.DB, { page: logPage, pageSize: 20 })
   const tokenSetting = await getSetting(c.env.DB, 'notification.pushplus_token')
   return renderAdminPage('/cron/anyrouter', 'AnyRouter', <CheckinPage accounts={accounts} logs={logs} pushplusToken={tokenSetting?.value ?? ''} />, c, 'checkin:list')
+})
+
+app.get('/cron/tasks', async (c) => {
+  const tasks = await getAllCronTasks(c.env.DB)
+  const logPage = Number(c.req.query('logPage') ?? '1')
+  const logs = await getCronTaskLogsPage(c.env.DB, { page: logPage, pageSize: 20 })
+  return renderAdminPage('/cron/tasks', '通用任务', <CronTasksPage tasks={tasks} logs={logs} />, c, 'crontask:list')
 })
 
 app.get('/profile', async (c) => {
@@ -500,6 +509,124 @@ app.get('/api/checkin/logs', async (c) => {
   return c.json(data)
 })
 
+// Cron Tasks API
+app.get('/api/cron/tasks', async (c) => {
+  const data = await getAllCronTasks(c.env.DB)
+  return c.json(data)
+})
+
+app.post('/api/cron/tasks', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'crontask:create')) return c.json({ error: 'Forbidden' }, 403)
+  const body = await c.req.json()
+  const nextRun = cronNextRun(body.cron_expr).toISOString()
+  const task = await createCronTask(c.env.DB, { ...body, next_run_at: nextRun })
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'crontask:create', resource_type: 'cron_task',
+    resource_id: String(task?.id ?? ''), detail: `创建定时任务 ${body.name}`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, data: task })
+})
+
+app.put('/api/cron/tasks/:id', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'crontask:update')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const body = await c.req.json()
+  if (body.cron_expr) body.next_run_at = cronNextRun(body.cron_expr).toISOString()
+  const task = await updateCronTask(c.env.DB, id, body)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'crontask:update', resource_type: 'cron_task',
+    resource_id: String(id), detail: `更新定时任务 #${id}`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, data: task })
+})
+
+app.delete('/api/cron/tasks/:id', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'crontask:delete')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const ok = await deleteCronTask(c.env.DB, id)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'crontask:delete', resource_type: 'cron_task',
+    resource_id: String(id), detail: `删除定时任务 #${id}`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok })
+})
+
+app.patch('/api/cron/tasks/:id/status', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'crontask:update')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const task = await toggleCronTaskStatus(c.env.DB, id)
+  if (task && task.status === 'active') {
+    await updateCronTask(c.env.DB, id, { next_run_at: cronNextRun(task.cron_expr).toISOString() })
+  }
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'crontask:update', resource_type: 'cron_task',
+    resource_id: String(id), detail: `切换定时任务 #${id} 状态`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, data: task })
+})
+
+app.post('/api/cron/tasks/:id/run', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'crontask:run')) return c.json({ error: 'Forbidden' }, 403)
+  const id = Number(c.req.param('id'))
+  const task = await getCronTaskById(c.env.DB, id)
+  if (!task) return c.json({ error: 'Not found' }, 404)
+  const result = await executeCronTask(c.env.DB, task, 'manual')
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'crontask:run', resource_type: 'cron_task',
+    resource_id: String(id), detail: `手动执行定时任务 ${task.name}`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: result.ok, message: result.msg })
+})
+
+app.post('/api/cron/tasks/parse-curl', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  const body = await c.req.json<{ curl: string }>()
+  const parsed = parseCurl(body.curl)
+  return c.json(parsed)
+})
+
+app.post('/api/cron/daily-summary', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'crontask:run')) return c.json({ error: 'Forbidden' }, 403)
+  await sendDailySummary(c.env.DB)
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'crontask:run', resource_type: 'daily_summary',
+    resource_id: '', detail: '手动发送每日汇总',
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, message: '汇总已发送' })
+})
+
+app.get('/api/cron/tasks/logs', async (c) => {
+  const page = Number(c.req.query('page') ?? '1')
+  const pageSize = Number(c.req.query('pageSize') ?? '20')
+  const data = await getCronTaskLogsPage(c.env.DB, { page, pageSize })
+  return c.json(data)
+})
+
 // ── 404 ──
 
 app.notFound((c) => {
@@ -522,7 +649,8 @@ app.notFound((c) => {
 })
 
 const cronHandlers: Record<string, (db: D1Database) => Promise<unknown>> = {
-  '0 0 * * *': runCheckin,
+  '0 0 * * *': async (db) => { await runCheckin(db); await sendDailySummary(db) },
+  '*/5 * * * *': runDueCronTasks,
 }
 
 const scheduled: ExportedHandlerScheduledHandler<CloudflareBindings> = async (event, env, ctx) => {
