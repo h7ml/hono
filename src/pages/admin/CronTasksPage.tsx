@@ -1,6 +1,6 @@
 import type { FC } from 'hono/jsx'
 import type { DbCronTask, DbCronTaskLog, PaginatedResponse } from '../../types/app'
-import { IconGlobe, IconPlus, IconClock, IconBell } from '../../components/icons'
+import { IconGlobe, IconPlus, IconClock, IconBell, IconRefresh } from '../../components/icons'
 
 interface CronTasksPageProps {
   tasks: DbCronTask[]
@@ -42,6 +42,10 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
           <p class="text-sm text-base-content/50 mt-0.5">共 {tasks.length} 个任务</p>
         </div>
         <div class="flex gap-2">
+          <button class="btn btn-accent btn-sm gap-1.5 hidden" id="batch-run-btn" data-action="crontask-batch-run">
+            <IconRefresh size={16} />
+            批量执行 (<span id="batch-count">0</span>)
+          </button>
           <button class="btn btn-warning btn-sm gap-1.5" data-action="send-daily-summary">
             <IconBell size={16} />
             发送汇总
@@ -67,6 +71,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
               <table class="table table-sm table-enhanced">
                 <thead>
                   <tr>
+                    <th><input type="checkbox" class="checkbox checkbox-xs" data-action="crontask-select-all" /></th>
                     <th>名称</th>
                     <th>方法</th>
                     <th>URL</th>
@@ -90,6 +95,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
                       data-retries={t.max_retries}
                       data-notify={t.notify_on_failure}
                     >
+                      <td><input type="checkbox" class="checkbox checkbox-xs crontask-check" value={t.id} data-action="crontask-check" /></td>
                       <td class="font-medium text-sm">{t.name}</td>
                       <td><MethodBadge method={t.http_method} /></td>
                       <td class="max-w-[200px] truncate text-sm text-base-content/60">{t.url}</td>
@@ -144,7 +150,10 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
                 data-notify={t.notify_on_failure}
               >
                 <div class="flex items-center justify-between mb-2">
-                  <span class="font-semibold text-sm">{t.name}</span>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" class="checkbox checkbox-xs crontask-check" value={t.id} data-action="crontask-check" />
+                    <span class="font-semibold text-sm">{t.name}</span>
+                  </div>
                   <div class="flex items-center gap-1.5">
                     <MethodBadge method={t.http_method} />
                     <StatusBadge status={t.status} />

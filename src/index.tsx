@@ -620,6 +620,28 @@ app.post('/api/cron/daily-summary', async (c) => {
   return c.json({ ok: true, message: '汇总已发送' })
 })
 
+app.post('/api/cron/tasks/batch-run', async (c) => {
+  const session = getSession(c)
+  if (!session) return c.json({ error: 'Unauthorized' }, 401)
+  if (!hasPermission(session.permissions, 'crontask:run')) return c.json({ error: 'Forbidden' }, 403)
+  const body = await c.req.json<{ ids: number[] }>()
+  if (!body.ids?.length) return c.json({ error: '请选择任务' }, 400)
+  const results: string[] = []
+  for (const id of body.ids) {
+    const task = await getCronTaskById(c.env.DB, id)
+    if (!task) { results.push(`#${id}: 不存在`); continue }
+    const r = await executeCronTask(c.env.DB, task, 'manual')
+    results.push(`${task.name}: ${r.ok ? '成功' : '失败'} - ${r.msg}`)
+  }
+  await writeAuditLog(c.env.DB, {
+    user_id: session.id, user_name: session.name,
+    action: 'crontask:run', resource_type: 'cron_task',
+    resource_id: body.ids.join(','), detail: `批量执行 ${body.ids.length} 个任务`,
+    ip: getClientIp(c)
+  })
+  return c.json({ ok: true, message: results.join('\n') })
+})
+
 app.get('/api/cron/tasks/logs', async (c) => {
   const page = Number(c.req.query('page') ?? '1')
   const pageSize = Number(c.req.query('pageSize') ?? '20')

@@ -476,6 +476,22 @@ document.addEventListener('click', async (e) => {
         }
         break
       }
+      case 'crontask-batch-run': {
+        const checked = Array.from(document.querySelectorAll<HTMLInputElement>('.crontask-check:checked')).filter((el) => el.offsetParent !== null)
+        const ids = checked.map((el) => Number(el.value))
+        if (!ids.length) { showToast('请先勾选任务', 'warning'); break }
+        target.classList.add('loading', 'loading-spinner')
+        target.setAttribute('disabled', 'true')
+        try {
+          const res = await apiCall('POST', '/api/cron/tasks/batch-run', { ids }) as { message?: string }
+          showToast(res.message ?? '批量执行完成')
+          location.reload()
+        } finally {
+          target.classList.remove('loading', 'loading-spinner')
+          target.removeAttribute('disabled')
+        }
+        break
+      }
     }
   } catch (err) {
     showToast((err as Error).message, 'error')
@@ -497,4 +513,22 @@ document.addEventListener('change', (e) => {
     ;(modal.querySelector('[name="cron_expr"]') as HTMLInputElement).value = select.value
     select.value = ''
   }
+  if (target.dataset.action === 'crontask-select-all') {
+    const checked = (target as HTMLInputElement).checked
+    document.querySelectorAll<HTMLInputElement>('.crontask-check').forEach((el) => {
+      if (el.offsetParent !== null) el.checked = checked
+    })
+    updateBatchBtn()
+  }
+  if (target.dataset.action === 'crontask-check') {
+    updateBatchBtn()
+  }
 })
+
+function updateBatchBtn() {
+  const checked = Array.from(document.querySelectorAll<HTMLInputElement>('.crontask-check:checked')).filter(el => el.offsetParent !== null).length
+  const btn = document.getElementById('batch-run-btn')
+  const count = document.getElementById('batch-count')
+  if (btn) btn.classList.toggle('hidden', checked === 0)
+  if (count) count.textContent = String(checked)
+}
