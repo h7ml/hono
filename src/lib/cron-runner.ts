@@ -255,12 +255,12 @@ export async function sendDailySummary(db: D1Database): Promise<void> {
   if (!token) return
 
   const checkinLogs = await db
-    .prepare("SELECT account_label, success, message FROM hono_checkin_logs WHERE created_at >= date('now') ORDER BY created_at")
-    .all<{ account_label: string; success: number; message: string }>()
+    .prepare("SELECT account_label, success, message, created_at FROM hono_checkin_logs WHERE created_at >= date('now') ORDER BY created_at")
+    .all<{ account_label: string; success: number; message: string; created_at: string }>()
 
   const cronLogs = await db
-    .prepare("SELECT task_name, success, status_code, duration_ms, message, trigger_source FROM hono_cron_task_logs WHERE created_at >= date('now') ORDER BY created_at")
-    .all<{ task_name: string; success: number; status_code: number | null; duration_ms: number; message: string; trigger_source: string }>()
+    .prepare("SELECT task_name, success, status_code, duration_ms, message, trigger_source, created_at FROM hono_cron_task_logs WHERE created_at >= date('now') ORDER BY created_at")
+    .all<{ task_name: string; success: number; status_code: number | null; duration_ms: number; message: string; trigger_source: string; created_at: string }>()
 
   const checkinRows = checkinLogs.results
   const cronRows = cronLogs.results
@@ -273,7 +273,8 @@ export async function sendDailySummary(db: D1Database): Promise<void> {
     const fail = checkinRows.length - ok
     lines.push(`【AnyRouter 签到】共 ${checkinRows.length} 次 ✅${ok} ❌${fail}`)
     for (const r of checkinRows) {
-      lines.push(`  ${r.success ? '✅' : '❌'} ${r.account_label}: ${r.message}`)
+      const t = r.created_at?.slice(11, 16) || '--:--'
+      lines.push(`  ${r.success ? '✅' : '❌'} [${t}] ${r.account_label}: ${r.message}`)
     }
     lines.push('')
   }
@@ -283,8 +284,9 @@ export async function sendDailySummary(db: D1Database): Promise<void> {
     const fail = cronRows.length - ok
     lines.push(`【定时任务】共 ${cronRows.length} 次 ✅${ok} ❌${fail}`)
     for (const r of cronRows) {
+      const t = r.created_at?.slice(11, 16) || '--:--'
       const src = r.trigger_source === 'manual' ? '手动' : '调度'
-      lines.push(`  ${r.success ? '✅' : '❌'} ${r.task_name} [${src}] ${r.status_code ?? '-'} ${r.duration_ms}ms: ${r.message}`)
+      lines.push(`  ${r.success ? '✅' : '❌'} [${t}] ${r.task_name} [${src}] ${r.status_code ?? '-'} ${r.duration_ms}ms: ${r.message}`)
     }
     lines.push('')
   }

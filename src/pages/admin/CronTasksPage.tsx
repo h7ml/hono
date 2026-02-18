@@ -66,7 +66,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
       ) : (
         <>
           {/* 桌面表格 */}
-          <div class="hidden md:block page-section overflow-hidden">
+          <div class="hidden lg:block page-section overflow-hidden">
             <div class="overflow-x-auto">
               <table class="table table-sm table-enhanced">
                 <thead>
@@ -134,7 +134,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
           </div>
 
           {/* 移动端卡片 */}
-          <div class="md:hidden space-y-3">
+          <div class="lg:hidden space-y-3">
             {tasks.map((t) => (
               <div
                 class="page-section p-4"
@@ -200,7 +200,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
           </div>
         ) : (
           <>
-            <div class="hidden md:block page-section overflow-hidden">
+            <div class="hidden lg:block page-section overflow-hidden">
               <div class="overflow-x-auto">
                 <table class="table table-sm table-enhanced">
                   <thead>
@@ -244,7 +244,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
               </div>
             </div>
 
-            <div class="md:hidden space-y-3">
+            <div class="lg:hidden space-y-3">
               {logs.list.map((log) => (
                 <div class="page-section p-4">
                   <div class="flex items-start justify-between mb-1">
