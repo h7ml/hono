@@ -119,6 +119,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
                       <td>
                         <div class="flex justify-end gap-1">
                           <button class="action-btn" data-action="crontask-run-single" data-id={t.id}>执行</button>
+                          <button class="action-btn" data-action="copy-crontask" data-id={t.id}>复制</button>
                           <button class="action-btn" data-action="edit-crontask" data-id={t.id}>编辑</button>
                           <button class="action-btn" data-action="toggle-crontask-status" data-id={t.id}>
                             {t.status === 'active' ? '暂停' : '启用'}
@@ -175,6 +176,7 @@ export const CronTasksPage: FC<CronTasksPageProps> = ({ tasks, logs }) => {
                   )}
                   <div class="flex gap-1">
                     <button class="action-btn" data-action="crontask-run-single" data-id={t.id}>执行</button>
+                    <button class="action-btn" data-action="copy-crontask" data-id={t.id}>复制</button>
                     <button class="action-btn" data-action="edit-crontask" data-id={t.id}>编辑</button>
                     <button class="action-btn" data-action="toggle-crontask-status" data-id={t.id}>
                       {t.status === 'active' ? '暂停' : '启用'}

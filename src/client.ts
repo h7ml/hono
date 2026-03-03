@@ -347,6 +347,25 @@ document.addEventListener('click', async (e) => {
       }
 
       // ── Cron Tasks ──
+      case 'copy-crontask': {
+        const modal = document.getElementById('add-crontask-modal')
+        if (!modal) break
+        const row = target.closest('tr') ?? target.closest('[data-name]')
+        if (!row) break
+        const el = row as HTMLElement
+        ;(modal.querySelector('[name="name"]') as HTMLInputElement).value = (el.dataset.name ?? '') + ' (副本)'
+        ;(modal.querySelector('[name="description"]') as HTMLInputElement).value = el.dataset.desc ?? ''
+        ;(modal.querySelector('[name="cron_expr"]') as HTMLInputElement).value = el.dataset.cron ?? ''
+        ;(modal.querySelector('[name="http_method"]') as HTMLSelectElement).value = el.dataset.method ?? 'GET'
+        ;(modal.querySelector('[name="url"]') as HTMLInputElement).value = el.dataset.url ?? ''
+        ;(modal.querySelector('[name="headers"]') as HTMLTextAreaElement).value = el.dataset.headers ?? '{}'
+        ;(modal.querySelector('[name="body"]') as HTMLTextAreaElement).value = el.dataset.body ?? ''
+        ;(modal.querySelector('[name="timeout_ms"]') as HTMLInputElement).value = el.dataset.timeout ?? '30000'
+        ;(modal.querySelector('[name="max_retries"]') as HTMLInputElement).value = el.dataset.retries ?? '0'
+        ;(modal.querySelector('[name="notify_on_failure"]') as HTMLSelectElement).value = el.dataset.notify ?? '1'
+        openModal('add-crontask-modal')
+        break
+      }
       case 'open-add-crontask': {
         openModal('add-crontask-modal')
         break
@@ -440,7 +459,6 @@ document.addEventListener('click', async (e) => {
         try {
           const res = await apiCall('POST', `/api/cron/tasks/${id}/run`) as { message?: string }
           showToast(res.message ?? '执行完成')
-          location.reload()
         } finally {
           target.classList.remove('loading', 'loading-spinner')
           target.removeAttribute('disabled')
